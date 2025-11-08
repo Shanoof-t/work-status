@@ -605,7 +605,7 @@ export default function WorkStatusForm({
               <FormItem>
                 <FormLabel className="text-white">Title</FormLabel>
                 <FormControl>
-                  <Textarea
+                  <Input
                     placeholder="e.g., Action button misalignment"
                     className="resize-none text-white"
                     {...field}

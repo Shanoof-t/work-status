@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Copy, Check, Edit, Save, RotateCcw } from "lucide-react";
+import { Copy, Check, Edit, RotateCcw } from "lucide-react";
 
 interface WorkStatus {
   id: string;
@@ -22,7 +22,7 @@ interface WorkStatus {
   totalEffortFormatted: string;
   estimatedEffortFormatted: string;
   date: Date;
-  createdAt: string; // Add this field
+  createdAt: string;
 }
 
 interface CopyStatusModalProps {
@@ -79,11 +79,19 @@ export function CopyStatusModal({
   const originalStatusText = generateStatusText();
 
   // Initialize edited text when modal opens or workStatuses changes
+  // Only update if not currently editing to preserve user changes
   useEffect(() => {
-    if (sortedWorkStatuses.length > 0) {
+    if (isOpen && sortedWorkStatuses.length > 0 && !isEditing) {
       setEditedText(originalStatusText);
     }
-  }, [sortedWorkStatuses, originalStatusText]);
+  }, [isOpen, sortedWorkStatuses.length]);
+
+  // Reset editing state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setIsEditing(false);
+    }
+  }, [isOpen]);
 
   const handleCopy = async () => {
     const textToCopy = isEditing ? editedText : originalStatusText;
@@ -107,10 +115,10 @@ export function CopyStatusModal({
 
   const handleEditToggle = () => {
     if (isEditing) {
-      // Save changes
+      // Save changes (just toggle off editing mode)
       setIsEditing(false);
     } else {
-      // Start editing
+      // Start editing - sync with current original text
       setEditedText(originalStatusText);
       setIsEditing(true);
     }
@@ -118,7 +126,6 @@ export function CopyStatusModal({
 
   const handleReset = () => {
     setEditedText(originalStatusText);
-    setIsEditing(false);
   };
 
   return (
@@ -140,9 +147,7 @@ export function CopyStatusModal({
             <Textarea
               value={isEditing ? editedText : originalStatusText}
               readOnly={!isEditing}
-              onChange={
-                isEditing ? (e) => setEditedText(e.target.value) : undefined
-              }
+              onChange={(e) => setEditedText(e.target.value)}
               className={`min-h-[300px] font-mono text-sm resize-none ${
                 isEditing && "bg-neutral-900 focus:border-blue-600"
               }`}
@@ -166,7 +171,7 @@ export function CopyStatusModal({
                     size="sm"
                     onClick={handleEditToggle}
                     className="h-8 hover:bg-black"
-                  >                
+                  >
                     <Edit className="w-4 h-4" />
                   </Button>
                 )}

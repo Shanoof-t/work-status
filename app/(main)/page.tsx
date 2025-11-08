@@ -39,9 +39,7 @@ interface WorkStatus {
 }
 
 interface WorkStatusData {
-  today: WorkStatus[];
-  yesterday: WorkStatus[];
-  thisWeek: WorkStatus[];
+  [key: string]: WorkStatus[];
 }
 
 function StatusCard({
@@ -194,14 +192,30 @@ export function DaySection({ title, workStatuses, count, onEdit, onDelete }: Day
   );
 }
 
+// Helper function to format date for display
+function formatDateDisplay(date: Date): string {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) {
+    return "Today";
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return "Yesterday";
+  } else {
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  }
+}
+
 export default function Home() {
   const router = useRouter();
   const { user, isLoading: userLoading } = useUser();
-  const [workStatusData, setWorkStatusData] = useState<WorkStatusData>({
-    today: [],
-    yesterday: [],
-    thisWeek: []
-  });
+  const [workStatusData, setWorkStatusData] = useState<WorkStatusData>({});
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch work status data when user is available
@@ -222,29 +236,37 @@ export default function Home() {
       const result = await getAllWorkStatuses(user.id);
       
       if (result.success && result.data) {
-        // Group the data by date
+        // Get dates for the last 7 days
         const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const weekAgo = new Date(today);
-        weekAgo.setDate(weekAgo.getDate() - 7);
+        const last7Days: { [key: string]: WorkStatus[] } = {};
 
-        const groupedData: WorkStatusData = {
-          today: result.data.filter((status: any) => {
-            const statusDate = new Date(status.date);
-            return statusDate.toDateString() === today.toDateString();
-          }),
-          yesterday: result.data.filter((status: any) => {
-            const statusDate = new Date(status.date);
-            return statusDate.toDateString() === yesterday.toDateString();
-          }),
-          thisWeek: result.data.filter((status: any) => {
-            const statusDate = new Date(status.date);
-            return statusDate >= weekAgo && statusDate < yesterday;
-          })
-        };
+        // Initialize last 7 days with empty arrays
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - i);
+          const dateKey = date.toDateString();
+          last7Days[dateKey] = [];
+        }
 
-        setWorkStatusData(groupedData);
+        // Group work statuses by date for the last 7 days
+        result.data.forEach((status: WorkStatus) => {
+          const statusDate = new Date(status.date);
+          const statusDateKey = statusDate.toDateString();
+          
+          // Only include statuses from the last 7 days
+          const sevenDaysAgo = new Date(today);
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // -6 to include today (7 days total)
+          sevenDaysAgo.setHours(0, 0, 0, 0);
+
+          if (statusDate >= sevenDaysAgo) {
+            if (!last7Days[statusDateKey]) {
+              last7Days[statusDateKey] = [];
+            }
+            last7Days[statusDateKey].push(status);
+          }
+        });
+
+        setWorkStatusData(last7Days);
       }
     } catch (error) {
       console.error('Error fetching work status data:', error);
@@ -277,7 +299,8 @@ export default function Home() {
   };
 
   // Calculate total today's effort from real data
-  const totalTodayEffort = workStatusData.today.reduce((total, status: any) => {
+  const todayKey = new Date().toDateString();
+  const totalTodayEffort = (workStatusData[todayKey] || []).reduce((total, status: any) => {
     // Only count non-negative values (skip -1 values)
     const days = status.effortTodayDays >= 0 ? status.effortTodayDays : 0;
     const hours = status.effortTodayHours >= 0 ? status.effortTodayHours : 0;
@@ -296,6 +319,21 @@ export default function Home() {
     (totalDays > 0 ? `${totalDays}d ` : "") +
     (totalHours > 0 ? `${totalHours}h ` : "") +
     (totalMins > 0 ? `${totalMins}m` : "");
+
+  // Get sorted dates for display (newest first) - FIXED THIS LINE
+  const sortedDates = Object.keys(workStatusData).sort((a, b) => {
+    return new Date(b).getTime() - new Date(a).getTime(); // Changed from a-b to b-a
+  });
+
+  // Calculate total items across all days
+  const totalItems = Object.values(workStatusData).reduce((total, statuses) => {
+    return total + statuses.length;
+  }, 0);
+
+  // Calculate completed items across all days
+  const completedItems = Object.values(workStatusData).reduce((total, statuses) => {
+    return total + statuses.filter((item: any) => item.status === "Done").length;
+  }, 0);
 
   if (userLoading || isLoading) {
     return (
@@ -321,8 +359,7 @@ export default function Home() {
               onClick={() => router.push("/create")}
               className="flex items-center space-x-2 bg-white text-black hover:bg-gray-200 border-0"
               variant="outline"
-            >
-              <Plus className="h-4 w-4" />
+            >              
               <span>Create Status</span>
             </Button>
           </div>
@@ -336,14 +373,14 @@ export default function Home() {
           <Card className="bg-black border-gray-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-white">
-                Today's Items
+                Last 7 Days Items
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                {workStatusData.today.length}
+                {totalItems}
               </div>
-              <p className="text-xs text-gray-400">Active work items</p>
+              <p className="text-xs text-gray-400">Total work items</p>
             </CardContent>
           </Card>
           <Card className="bg-black border-gray-800">
@@ -367,9 +404,9 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                {workStatusData.today.filter((item: any) => item.status === "In Progress").length}
+                {(workStatusData[todayKey] || []).filter((item: any) => item.status === "In Progress").length}
               </div>
-              <p className="text-xs text-gray-400">Active tasks</p>
+              <p className="text-xs text-gray-400">Active tasks today</p>
             </CardContent>
           </Card>
           <Card className="bg-black border-gray-800">
@@ -380,42 +417,29 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                {workStatusData.thisWeek.filter((item: any) => item.status === "Done").length}
+                {completedItems}
               </div>
-              <p className="text-xs text-gray-400">This week</p>
+              <p className="text-xs text-gray-400">Last 7 days</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Work Status by Day */}
         <div className="space-y-8">
-          <DaySection
-            title="Today"
-            workStatuses={workStatusData.today}
-            count={workStatusData.today.length}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-
-          <DaySection
-            title="Yesterday"
-            workStatuses={workStatusData.yesterday}
-            count={workStatusData.yesterday.length}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-
-          <DaySection
-            title="This Week"
-            workStatuses={workStatusData.thisWeek}
-            count={workStatusData.thisWeek.length}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+          {sortedDates.map((dateKey) => (
+            <DaySection
+              key={dateKey}
+              title={formatDateDisplay(new Date(dateKey))}
+              workStatuses={workStatusData[dateKey]}
+              count={workStatusData[dateKey].length}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ))}
         </div>
 
         {/* Empty State */}
-        {!isLoading && workStatusData.today.length === 0 && workStatusData.yesterday.length === 0 && workStatusData.thisWeek.length === 0 && (
+        {!isLoading && totalItems === 0 && (
           <div className="text-center py-12">
             <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-white">No work status yet</h3>
