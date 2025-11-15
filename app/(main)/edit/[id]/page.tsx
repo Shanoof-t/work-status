@@ -1,11 +1,11 @@
-// app/[ticketNumber]/page.tsx
+// app/edit/[id]/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import WorkStatusForm from "../components/work-status-form";
+import WorkStatusForm from "../../components/work-status-form";
 import { useUser } from "@/app/context/UserContext";
-import { getWorkStatusByTicketNumber } from "../../../lib/actions/work_status_actions";
+import { getWorkStatusById } from "../../../../lib/actions/work_status_actions";
 
 interface WorkStatusData {
   id: string;
@@ -38,7 +38,7 @@ export default function EditWorkStatusPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const ticketNumber = params.ticketNumber as string;
+  const id = params.id as string;
 
   useEffect(() => {
     async function fetchWorkStatus() {
@@ -46,7 +46,7 @@ export default function EditWorkStatusPage() {
 
       try {
         setIsLoading(true);
-        const result = await getWorkStatusByTicketNumber(ticketNumber, user.id);
+        const result = await getWorkStatusById(id, user.id);
 
         if (result.success) {
           setWorkStatus(result.data as WorkStatusData);
@@ -64,7 +64,7 @@ export default function EditWorkStatusPage() {
     if (user) {
       fetchWorkStatus();
     }
-  }, [user, ticketNumber]);
+  }, [user, id]);
 
   if (userLoading || isLoading) {
     return (
@@ -99,11 +99,11 @@ export default function EditWorkStatusPage() {
   }
 
   return (
-    <div className="min-h-screen flex justify-center items-center">
+    <div className="min-h-screen bg-black py-8 flex justify-center items-center">
       <WorkStatusForm
         workStatus={workStatus}
         isEdit={true}
-        ticketNumber={ticketNumber}
+        id={id}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+// app/page.tsx
 "use client";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -63,7 +64,7 @@ function StatusCard({
   onMoveToToday,
 }: {
   workStatus: WorkStatus;
-  onEdit: (ticketNumber: string) => void;
+  onEdit: (id: string) => void;
   onDelete: (id: string, ticketNumber: string) => void;
   onMoveToToday: (id: string, ticketNumber: string) => void;
 }) {
@@ -127,7 +128,7 @@ function StatusCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onEdit(workStatus.ticketNumber)}
+                  onClick={() => onEdit(workStatus.id)}
                   className="h-8 w-8 p-0"
                   title="Edit"
                 >
@@ -220,7 +221,7 @@ interface DaySectionProps {
   title: string;
   workStatuses: WorkStatus[];
   count: number;
-  onEdit: (ticketNumber: string) => void;
+  onEdit: (id: string) => void;
   onDelete: (id: string, ticketNumber: string) => void;
   onMoveToToday: (id: string, ticketNumber: string) => void;
   onBulkMoveToToday?: (workStatuses: WorkStatus[]) => void;
@@ -370,13 +371,11 @@ function parseEffortToMinutes(effortString: string): number {
 function formatMinutesToReadable(totalMinutes: number): string {
   if (totalMinutes <= 0) return "0h";
 
-  const days = Math.floor(totalMinutes / (8 * 60));
-  const remainingMinutes = totalMinutes % (8 * 60);
-  const hours = Math.floor(remainingMinutes / 60);
-  const minutes = remainingMinutes % 60;
+  // For Today's Effort display, don't convert to days - show actual hours
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
 
   const parts = [];
-  if (days > 0) parts.push(`${days}d`);
   if (hours > 0) parts.push(`${hours}h`);
   if (minutes > 0) parts.push(`${minutes}m`);
 
@@ -453,9 +452,9 @@ export default function Home() {
     fetchWorkStatusData();
   }, [fetchWorkStatusData]);
 
-  // Handle edit button click
-  const handleEdit = (ticketNumber: string) => {
-    router.push(`/${ticketNumber}`);
+  // Handle edit button click - NOW USING ID
+  const handleEdit = (id: string) => {
+    router.push(`/edit/${id}`);
   };
 
   // Handle delete button click
@@ -568,14 +567,14 @@ export default function Home() {
     }
   };
 
-  // Calculate total today's effort from real data
+  // Calculate total today's effort from real data - FIXED
   const todayKey = new Date().toDateString();
-  const totalTodayEffort = (workStatusData[todayKey] || []).reduce(
-    (total, status: WorkStatus) => {
-      return total + parseEffortToMinutes(status.effortTodayFormatted);
-    },
-    0,
-  );
+  const todayWorkStatuses = workStatusData[todayKey] || [];
+  
+  const totalTodayEffort = todayWorkStatuses.reduce((total, status: WorkStatus) => {
+    // Parse the effortTodayFormatted string to get minutes
+    return total + parseEffortToMinutes(status.effortTodayFormatted);
+  }, 0);
 
   // Format the total effort for display
   const formattedTotalEffort = formatMinutesToReadable(totalTodayEffort);
@@ -602,7 +601,7 @@ export default function Home() {
   );
 
   // Calculate in progress items for today
-  const todayInProgressItems = (workStatusData[todayKey] || []).filter(
+  const todayInProgressItems = todayWorkStatuses.filter(
     (item: WorkStatus) => item.status === "In Progress",
   ).length;
 

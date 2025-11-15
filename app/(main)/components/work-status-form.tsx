@@ -67,7 +67,7 @@ const timeStringSchema = (fieldLabel: string) =>
       },
       {
         message: `${fieldLabel} must be in format like '1d 2h 30m' or '0h' for zero time`,
-      },
+      }
     )
     .transform((val) => val); // Default to "0h" if empty for submission
 
@@ -79,7 +79,7 @@ const formSchema = z.object({
     .min(1, "Ticket number is required")
     .refine(
       (val) => val.trim() !== "DCV2-" && val.startsWith("DCV2-"),
-      "Please complete the ticket number.",
+      "Please complete the ticket number."
     ),
   title: z.string().min(1, "Title is required"),
   status: z.string().min(1, "Status is required"),
@@ -135,7 +135,7 @@ function TimeSelector({
 
   const handleTimeChange = (
     type: "days" | "hours" | "minutes",
-    newValue: string,
+    newValue: string
   ) => {
     let newDays = days;
     let newHours = hours;
@@ -194,7 +194,7 @@ function TimeSelector({
   const getDisplayValue = (
     type: "days" | "hours" | "minutes",
     value: number,
-    hasValue: boolean,
+    hasValue: boolean
   ) => {
     if (!hasValue) {
       return type === "days" ? "d" : type === "hours" ? "h" : "m";
@@ -206,7 +206,7 @@ function TimeSelector({
   const getSelectValue = (
     type: "days" | "hours" | "minutes",
     value: number,
-    hasValue: boolean,
+    hasValue: boolean
   ) => {
     if (!hasValue) {
       return type === "days" ? "d" : type === "hours" ? "h" : "m";
@@ -230,7 +230,7 @@ function TimeSelector({
             <SelectTrigger
               className={cn(
                 "w-full text-white",
-                hasError && "border-rose-500 focus-visible:ring-rose-500",
+                hasError && "border-rose-500 focus-visible:ring-rose-500"
               )}
             >
               <SelectValue>
@@ -272,7 +272,7 @@ function TimeSelector({
             <SelectTrigger
               className={cn(
                 "w-full text-white",
-                hasError && "border-rose-500 focus-visible:ring-rose-500",
+                hasError && "border-rose-500 focus-visible:ring-rose-500"
               )}
             >
               <SelectValue>
@@ -314,7 +314,7 @@ function TimeSelector({
             <SelectTrigger
               className={cn(
                 "w-full text-white",
-                hasError && "border-rose-500 focus-visible:ring-rose-500",
+                hasError && "border-rose-500 focus-visible:ring-rose-500"
               )}
             >
               <SelectValue>
@@ -358,12 +358,14 @@ interface WorkStatusFormProps {
   workStatus?: any;
   isEdit?: boolean;
   ticketNumber?: string;
+  id?: string;
 }
 
 export default function WorkStatusForm({
   workStatus,
   isEdit = false,
   ticketNumber,
+  id,
 }: WorkStatusFormProps) {
   const router = useRouter();
   const { user, isLoading } = useUser();
@@ -374,7 +376,7 @@ export default function WorkStatusForm({
   const [state, formAction] = useActionState(
     async (
       prevState: ActionState,
-      formData: FormData,
+      formData: FormData
     ): Promise<ActionState> => {
       if (!user) {
         return { error: "User not authenticated" };
@@ -384,33 +386,34 @@ export default function WorkStatusForm({
       formDataWithUser.append("date", formData.get("date") as string);
       formDataWithUser.append(
         "ticketNumber",
-        formData.get("ticketNumber") as string,
+        formData.get("ticketNumber") as string
       );
       formDataWithUser.append("title", formData.get("title") as string);
       formDataWithUser.append("status", formData.get("status") as string);
       formDataWithUser.append(
         "effortToday",
-        formData.get("effortToday") as string,
+        formData.get("effortToday") as string
       );
       formDataWithUser.append(
         "totalEffort",
-        formData.get("totalEffort") as string,
+        formData.get("totalEffort") as string
       );
       formDataWithUser.append(
         "estimatedEffort",
-        formData.get("estimatedEffort") as string,
+        formData.get("estimatedEffort") as string
       );
       formDataWithUser.append("userId", user.id);
 
-      if (isEdit && workStatus?.id) {
-        formDataWithUser.append("id", workStatus.id);
-        return await updateWorkStatus(workStatus.id, formDataWithUser, user.id);
+      // Use the id prop for updates instead of workStatus?.id
+      if (isEdit && id) {
+        console.log("Updating work status with ID:", id);
+        return await updateWorkStatus(id, formDataWithUser, user.id);
       } else {
-        console.log("formDataWithUser", FormData);
+        console.log("Creating new work status");
         return await createWorkStatus(formDataWithUser);
       }
     },
-    null,
+    null
   );
 
   // Initialize form with default values
@@ -439,7 +442,7 @@ export default function WorkStatusForm({
         !user ||
         !watchTicketNumber ||
         watchTicketNumber === "DCV2-" ||
-        watchTicketNumber === workStatus?.ticketNumber
+        (isEdit && watchTicketNumber === workStatus?.ticketNumber)
       ) {
         setDuplicateError("");
         return;
@@ -447,14 +450,14 @@ export default function WorkStatusForm({
 
       try {
         const result = await checkDuplicateTicketNumber(
-          watchTicketNumber,
           user.id,
-          isEdit ? workStatus?.id : undefined,
+          watchTicketNumber,
+          isEdit ? id || workStatus?.id : undefined // Use id prop first, fallback to workStatus?.id
         );
-
+        
         if (result.exists) {
           setDuplicateError(
-            "A work status with this ticket number already exists",
+            "A work status with this ticket number already exists"
           );
         } else {
           setDuplicateError("");
@@ -467,7 +470,7 @@ export default function WorkStatusForm({
 
     const timeoutId = setTimeout(checkDuplicate, 500);
     return () => clearTimeout(timeoutId);
-  }, [watchTicketNumber, user, isEdit, workStatus]);
+  }, [watchTicketNumber, user, isEdit, workStatus, id]);
 
   // Handle form submission
   async function onSubmit(values: FormValues) {
@@ -481,7 +484,9 @@ export default function WorkStatusForm({
       return;
     }
 
-    console.log("values:", values);
+    console.log("Form submission values:", values);
+    console.log("Is edit mode:", isEdit);
+    console.log("Work status ID:", id || workStatus?.id);
 
     const formData = new FormData();
     formData.append("date", values.date.toISOString());
@@ -508,15 +513,17 @@ export default function WorkStatusForm({
 
   // Update page title and button text based on mode
   const pageTitle = isEdit
-    ? `Edit Work Status - ${ticketNumber}`
+    ? `Edit Work Status - ${
+        workStatus?.ticketNumber || ticketNumber || "Loading..."
+      }`
     : "Create Work Status";
   const submitButtonText = isPending
     ? isEdit
       ? "Updating..."
       : "Submitting..."
     : isEdit
-      ? "Update Work Status"
-      : "Submit Work Status";
+    ? "Update Work Status"
+    : "Submit Work Status";
 
   if (isLoading) {
     return (
@@ -545,22 +552,22 @@ export default function WorkStatusForm({
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold text-white">{pageTitle}</h1>
-        <p className="text-gray-600">
+        <p className="text-gray-400">
           {isEdit
-            ? "Update your work status"
+            ? "Update your work status details"
             : "Track your daily work progress and ticket status"}
         </p>
       </div>
 
       {/* Safe state checking */}
       {state && "error" in state && state.error && (
-        <div className="bg-destructive/15 text-destructive p-3 rounded-md">
+        <div className="bg-red-500/15 text-red-500 p-3 rounded-md border border-red-500/20">
           {state.error}
         </div>
       )}
 
       {state && "success" in state && state.success && (
-        <div className="bg-green-100 text-green-800 p-3 rounded-md">
+        <div className="bg-green-500/15 text-green-500 p-3 rounded-md border border-green-500/20">
           Work status {isEdit ? "updated" : "submitted"} successfully!
         </div>
       )}
@@ -580,8 +587,8 @@ export default function WorkStatusForm({
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-full pl-3 text-left font-normal text-white",
-                          !field.value && "text-muted-foreground",
+                          "w-full pl-3 text-left font-normal text-white bg-black border-gray-700 hover:bg-gray-900",
+                          !field.value && "text-gray-400"
                         )}
                       >
                         {field.value ? (
@@ -594,7 +601,7 @@ export default function WorkStatusForm({
                     </FormControl>
                   </PopoverTrigger>
                   <PopoverContent
-                    className="w-auto p-0 bg-neutral-800 border-0 text-white"
+                    className="w-auto p-0 bg-neutral-800 border-gray-700 text-white"
                     align="end"
                   >
                     <Calendar
@@ -605,6 +612,7 @@ export default function WorkStatusForm({
                         date > new Date() || date < new Date("1900-01-01")
                       }
                       initialFocus
+                      className="bg-neutral-800"
                     />
                   </PopoverContent>
                 </Popover>
@@ -624,7 +632,7 @@ export default function WorkStatusForm({
                   <Input
                     placeholder="e.g., DCV2-971"
                     {...field}
-                    className="text-white"
+                    className="text-white bg-black border-gray-700 focus:border-white"
                     disabled={isEdit} // Disable ticket number in edit mode
                   />
                 </FormControl>
@@ -653,7 +661,7 @@ export default function WorkStatusForm({
                 <FormControl>
                   <Input
                     placeholder="e.g., Action button misalignment"
-                    className="resize-none text-white"
+                    className="resize-none text-white bg-black border-gray-700 focus:border-white"
                     {...field}
                   />
                 </FormControl>
@@ -674,44 +682,24 @@ export default function WorkStatusForm({
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger className="text-white">
+                    <SelectTrigger className="text-white bg-black border-gray-700 focus:border-white">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent className="bg-neutral-800 border-0 text-white">
-                    <SelectItem value="BACKLOG" className="text-white">
-                      BACKLOG
-                    </SelectItem>
-                    <SelectItem value="TO DO" className="text-white">
-                      TO DO
-                    </SelectItem>
-                    <SelectItem value="IN PROGRESS" className="text-white">
-                      IN PROGRESS
-                    </SelectItem>
-                    <SelectItem
-                      value="DEVELOPER TESTING"
-                      className="text-white"
-                    >
+                  <SelectContent className="bg-neutral-800 border-gray-700 text-white">
+                    <SelectItem value="BACKLOG">BACKLOG</SelectItem>
+                    <SelectItem value="TO DO">TO DO</SelectItem>
+                    <SelectItem value="IN PROGRESS">IN PROGRESS</SelectItem>
+                    <SelectItem value="DEVELOPER TESTING">
                       DEVELOPER TESTING
                     </SelectItem>
-                    <SelectItem
-                      value="PR APPROVAL PENDING"
-                      className="text-white"
-                    >
+                    <SelectItem value="PR APPROVAL PENDING">
                       PR APPROVAL PENDING
                     </SelectItem>
-                    <SelectItem value="DQA" className="text-white">
-                      DQA
-                    </SelectItem>
-                    <SelectItem value="Done" className="text-white">
-                      Done
-                    </SelectItem>
-                    <SelectItem value="BLOCKED" className="text-white">
-                      BLOCKED
-                    </SelectItem>
-                    <SelectItem value="REOPENED" className="text-white">
-                      REOPENED
-                    </SelectItem>
+                    <SelectItem value="DQA">DQA</SelectItem>
+                    <SelectItem value="Done">Done</SelectItem>
+                    <SelectItem value="BLOCKED">BLOCKED</SelectItem>
+                    <SelectItem value="REOPENED">REOPENED</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage className="text-rose-500" />
@@ -780,19 +768,18 @@ export default function WorkStatusForm({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/")}
-              className="flex-1"
+              className="flex-1 bg-transparent text-white border-gray-700 hover:bg-gray-800"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1"
-              variant="outline"
+              className="flex-1 bg-white text-black hover:bg-gray-200 border-0"
               disabled={isPending || !!duplicateError}
             >
               {submitButtonText}
