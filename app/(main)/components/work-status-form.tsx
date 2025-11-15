@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -31,7 +30,11 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import { createWorkStatus, updateWorkStatus, checkDuplicateTicketNumber } from "@/lib/actions/work_status_actions";
+import {
+  createWorkStatus,
+  updateWorkStatus,
+  checkDuplicateTicketNumber,
+} from "@/lib/actions/work_status_actions";
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/app/context/UserContext";
@@ -43,30 +46,30 @@ const timeStringSchema = (fieldLabel: string) =>
       (value) => {
         // If empty, it's valid (showing just d/h/m)
         if (!value || value.trim() === "") return true;
-        
+
         // If value provided, validate the format
         const regex = /^((\d+d\s?)?(\d+h\s?)?(\d+m\s?)?)$/;
         const isValidFormat = regex.test(value.trim());
-        
+
         if (!isValidFormat) return false;
-        
+
         // Parse the values
         const daysMatch = value.match(/(\d+)d/);
         const hoursMatch = value.match(/(\d+)h/);
         const minutesMatch = value.match(/(\d+)m/);
-        
+
         const days = daysMatch ? parseInt(daysMatch[1]) : 0;
         const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
         const minutes = minutesMatch ? parseInt(minutesMatch[1]) : 0;
-        
+
         // All values should be non-negative
         return days >= 0 && hours >= 0 && minutes >= 0;
       },
       {
         message: `${fieldLabel} must be in format like '1d 2h 30m' or '0h' for zero time`,
-      }
+      },
     )
-    .transform(val => val); // Default to "0h" if empty for submission
+    .transform((val) => val); // Default to "0h" if empty for submission
 
 // Form validation schema
 const formSchema = z.object({
@@ -76,7 +79,7 @@ const formSchema = z.object({
     .min(1, "Ticket number is required")
     .refine(
       (val) => val.trim() !== "DCV2-" && val.startsWith("DCV2-"),
-      "Please complete the ticket number."
+      "Please complete the ticket number.",
     ),
   title: z.string().min(1, "Title is required"),
   status: z.string().min(1, "Status is required"),
@@ -85,11 +88,11 @@ const formSchema = z.object({
   estimatedEffort: timeStringSchema("Estimated Effort"),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+export type FormValues = z.infer<typeof formSchema>;
 
 // Define proper types for the action state
-type ActionState = 
-  | { success: boolean; data: any; error?: undefined } 
+type ActionState =
+  | { success: boolean; data: unknown; error?: undefined }
   | { error: string; success?: undefined; data?: undefined }
   | null;
 
@@ -97,7 +100,6 @@ type ActionState =
 function TimeSelector({
   value,
   onChange,
-  placeholder,
   hasError = false,
 }: {
   value: string;
@@ -127,13 +129,13 @@ function TimeSelector({
   const { days, hours, minutes } = parseTimeValue(value);
 
   // Check if each component has been explicitly set
-  const hasDays = value.includes('d');
-  const hasHours = value.includes('h');
-  const hasMinutes = value.includes('m');
+  const hasDays = value.includes("d");
+  const hasHours = value.includes("h");
+  const hasMinutes = value.includes("m");
 
   const handleTimeChange = (
     type: "days" | "hours" | "minutes",
-    newValue: string
+    newValue: string,
   ) => {
     let newDays = days;
     let newHours = hours;
@@ -153,28 +155,31 @@ function TimeSelector({
 
     // Build the output string - only include components that have values > 0 OR were explicitly set to 0
     const parts = [];
-    
+
     // Include days if it's being actively set or has a non-zero value
     if (type === "days") {
-      if (newValue !== "d") { // If not selecting the unit label
+      if (newValue !== "d") {
+        // If not selecting the unit label
         parts.push(`${newDays}d`);
       }
     } else if (hasDays && newDays >= 0) {
       parts.push(`${newDays}d`);
     }
-    
+
     // Include hours if it's being actively set or has a non-zero value
     if (type === "hours") {
-      if (newValue !== "h") { // If not selecting the unit label
+      if (newValue !== "h") {
+        // If not selecting the unit label
         parts.push(`${newHours}h`);
       }
     } else if (hasHours && newHours >= 0) {
       parts.push(`${newHours}h`);
     }
-    
+
     // Include minutes if it's being actively set or has a non-zero value
     if (type === "minutes") {
-      if (newValue !== "m") { // If not selecting the unit label
+      if (newValue !== "m") {
+        // If not selecting the unit label
         parts.push(`${newMinutes}m`);
       }
     } else if (hasMinutes && newMinutes >= 0) {
@@ -186,7 +191,11 @@ function TimeSelector({
   };
 
   // Get display value for each selector
-  const getDisplayValue = (type: "days" | "hours" | "minutes", value: number, hasValue: boolean) => {
+  const getDisplayValue = (
+    type: "days" | "hours" | "minutes",
+    value: number,
+    hasValue: boolean,
+  ) => {
     if (!hasValue) {
       return type === "days" ? "d" : type === "hours" ? "h" : "m";
     }
@@ -194,7 +203,11 @@ function TimeSelector({
   };
 
   // Get select value for each selector
-  const getSelectValue = (type: "days" | "hours" | "minutes", value: number, hasValue: boolean) => {
+  const getSelectValue = (
+    type: "days" | "hours" | "minutes",
+    value: number,
+    hasValue: boolean,
+  ) => {
     if (!hasValue) {
       return type === "days" ? "d" : type === "hours" ? "h" : "m";
     }
@@ -217,7 +230,7 @@ function TimeSelector({
             <SelectTrigger
               className={cn(
                 "w-full text-white",
-                hasError && "border-rose-500 focus-visible:ring-rose-500"
+                hasError && "border-rose-500 focus-visible:ring-rose-500",
               )}
             >
               <SelectValue>
@@ -259,7 +272,7 @@ function TimeSelector({
             <SelectTrigger
               className={cn(
                 "w-full text-white",
-                hasError && "border-rose-500 focus-visible:ring-rose-500"
+                hasError && "border-rose-500 focus-visible:ring-rose-500",
               )}
             >
               <SelectValue>
@@ -301,7 +314,7 @@ function TimeSelector({
             <SelectTrigger
               className={cn(
                 "w-full text-white",
-                hasError && "border-rose-500 focus-visible:ring-rose-500"
+                hasError && "border-rose-500 focus-visible:ring-rose-500",
               )}
             >
               <SelectValue>
@@ -334,57 +347,70 @@ function TimeSelector({
       {/* Current value display */}
       <div className="text-center">
         <span className="text-sm text-gray-400">Formatted: </span>
-        <span className="text-sm text-white font-medium">
-          {value || ""}
-        </span>
+        <span className="text-sm text-white font-medium">{value || ""}</span>
       </div>
     </div>
   );
 }
 
 interface WorkStatusFormProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   workStatus?: any;
   isEdit?: boolean;
   ticketNumber?: string;
 }
 
-export default function WorkStatusForm({ 
-  workStatus, 
-  isEdit = false, 
-  ticketNumber 
+export default function WorkStatusForm({
+  workStatus,
+  isEdit = false,
+  ticketNumber,
 }: WorkStatusFormProps) {
   const router = useRouter();
   const { user, isLoading } = useUser();
   const [isPending, startTransition] = useTransition();
   const [duplicateError, setDuplicateError] = useState("");
-  
+
   // Create a wrapper action for useActionState that includes the user ID
   const [state, formAction] = useActionState(
-    async (prevState: ActionState, formData: FormData): Promise<ActionState> => {
+    async (
+      prevState: ActionState,
+      formData: FormData,
+    ): Promise<ActionState> => {
       if (!user) {
-        return { error: 'User not authenticated' };
+        return { error: "User not authenticated" };
       }
-      
+
       const formDataWithUser = new FormData();
-      formDataWithUser.append('date', formData.get('date') as string);
-      formDataWithUser.append('ticketNumber', formData.get('ticketNumber') as string);
-      formDataWithUser.append('title', formData.get('title') as string);
-      formDataWithUser.append('status', formData.get('status') as string);
-      formDataWithUser.append('effortToday', formData.get('effortToday') as string);
-      formDataWithUser.append('totalEffort', formData.get('totalEffort') as string);
-      formDataWithUser.append('estimatedEffort', formData.get('estimatedEffort') as string);
-      formDataWithUser.append('userId', user.id);
+      formDataWithUser.append("date", formData.get("date") as string);
+      formDataWithUser.append(
+        "ticketNumber",
+        formData.get("ticketNumber") as string,
+      );
+      formDataWithUser.append("title", formData.get("title") as string);
+      formDataWithUser.append("status", formData.get("status") as string);
+      formDataWithUser.append(
+        "effortToday",
+        formData.get("effortToday") as string,
+      );
+      formDataWithUser.append(
+        "totalEffort",
+        formData.get("totalEffort") as string,
+      );
+      formDataWithUser.append(
+        "estimatedEffort",
+        formData.get("estimatedEffort") as string,
+      );
+      formDataWithUser.append("userId", user.id);
 
       if (isEdit && workStatus?.id) {
-        formDataWithUser.append('id', workStatus.id);
+        formDataWithUser.append("id", workStatus.id);
         return await updateWorkStatus(workStatus.id, formDataWithUser, user.id);
       } else {
-
-        console.log("formDataWithUser",FormData)
+        console.log("formDataWithUser", FormData);
         return await createWorkStatus(formDataWithUser);
       }
     },
-    null
+    null,
   );
 
   // Initialize form with default values
@@ -402,24 +428,34 @@ export default function WorkStatusForm({
   });
 
   // Check for duplicate ticket number when ticketNumber field changes
-  const watchTicketNumber = form.watch("ticketNumber");
-  
+  const watchTicketNumber = useWatch({
+    control: form.control,
+    name: "ticketNumber",
+  });
+
   useEffect(() => {
     const checkDuplicate = async () => {
-      if (!user || !watchTicketNumber || watchTicketNumber === "DCV2-" || watchTicketNumber === workStatus?.ticketNumber) {
+      if (
+        !user ||
+        !watchTicketNumber ||
+        watchTicketNumber === "DCV2-" ||
+        watchTicketNumber === workStatus?.ticketNumber
+      ) {
         setDuplicateError("");
         return;
       }
 
       try {
         const result = await checkDuplicateTicketNumber(
-          watchTicketNumber, 
-          user.id, 
-          isEdit ? workStatus?.id : undefined
+          watchTicketNumber,
+          user.id,
+          isEdit ? workStatus?.id : undefined,
         );
-        
+
         if (result.exists) {
-          setDuplicateError("A work status with this ticket number already exists");
+          setDuplicateError(
+            "A work status with this ticket number already exists",
+          );
         } else {
           setDuplicateError("");
         }
@@ -446,7 +482,7 @@ export default function WorkStatusForm({
     }
 
     console.log("values:", values);
-    
+
     const formData = new FormData();
     formData.append("date", values.date.toISOString());
     formData.append("ticketNumber", values.ticketNumber);
@@ -463,7 +499,7 @@ export default function WorkStatusForm({
 
   // Reset form on successful submission
   useEffect(() => {
-    if (state && 'success' in state && state.success) {
+    if (state && "success" in state && state.success) {
       form.reset();
       router.refresh();
       router.push("/");
@@ -471,10 +507,16 @@ export default function WorkStatusForm({
   }, [state, form, router]);
 
   // Update page title and button text based on mode
-  const pageTitle = isEdit ? `Edit Work Status - ${ticketNumber}` : "Create Work Status";
-  const submitButtonText = isPending 
-    ? (isEdit ? "Updating..." : "Submitting...") 
-    : (isEdit ? "Update Work Status" : "Submit Work Status");
+  const pageTitle = isEdit
+    ? `Edit Work Status - ${ticketNumber}`
+    : "Create Work Status";
+  const submitButtonText = isPending
+    ? isEdit
+      ? "Updating..."
+      : "Submitting..."
+    : isEdit
+      ? "Update Work Status"
+      : "Submit Work Status";
 
   if (isLoading) {
     return (
@@ -488,7 +530,9 @@ export default function WorkStatusForm({
     return (
       <div className="max-w-4xl mx-auto p-6">
         <div className="text-center">
-          <p className="text-white">Please log in to {isEdit ? 'edit' : 'submit'} work status</p>
+          <p className="text-white">
+            Please log in to {isEdit ? "edit" : "submit"} work status
+          </p>
           <Button onClick={() => router.push("/login")} className="mt-4">
             Go to Login
           </Button>
@@ -502,20 +546,22 @@ export default function WorkStatusForm({
       <div className="space-y-2">
         <h1 className="text-3xl font-bold text-white">{pageTitle}</h1>
         <p className="text-gray-600">
-          {isEdit ? "Update your work status" : "Track your daily work progress and ticket status"}
+          {isEdit
+            ? "Update your work status"
+            : "Track your daily work progress and ticket status"}
         </p>
       </div>
 
       {/* Safe state checking */}
-      {state && 'error' in state && state.error && (
+      {state && "error" in state && state.error && (
         <div className="bg-destructive/15 text-destructive p-3 rounded-md">
           {state.error}
         </div>
       )}
 
-      {state && 'success' in state && state.success && (
+      {state && "success" in state && state.success && (
         <div className="bg-green-100 text-green-800 p-3 rounded-md">
-          Work status {isEdit ? 'updated' : 'submitted'} successfully!
+          Work status {isEdit ? "updated" : "submitted"} successfully!
         </div>
       )}
 
@@ -535,7 +581,7 @@ export default function WorkStatusForm({
                         variant={"outline"}
                         className={cn(
                           "w-full pl-3 text-left font-normal text-white",
-                          !field.value && "text-muted-foreground"
+                          !field.value && "text-muted-foreground",
                         )}
                       >
                         {field.value ? (
@@ -642,15 +688,21 @@ export default function WorkStatusForm({
                     <SelectItem value="IN PROGRESS" className="text-white">
                       IN PROGRESS
                     </SelectItem>
-                    <SelectItem value="DEVELOPER TESTING" className="text-white">
+                    <SelectItem
+                      value="DEVELOPER TESTING"
+                      className="text-white"
+                    >
                       DEVELOPER TESTING
                     </SelectItem>
-                    <SelectItem value="PR APPROVAL PENDING" className="text-white">
+                    <SelectItem
+                      value="PR APPROVAL PENDING"
+                      className="text-white"
+                    >
                       PR APPROVAL PENDING
                     </SelectItem>
                     <SelectItem value="DQA" className="text-white">
                       DQA
-                    </SelectItem>                
+                    </SelectItem>
                     <SelectItem value="Done" className="text-white">
                       Done
                     </SelectItem>
@@ -729,7 +781,7 @@ export default function WorkStatusForm({
 
           {/* Action Buttons */}
           <div className="flex gap-4">
-            <Button 
+            <Button
               type="button"
               variant="outline"
               onClick={() => router.push("/")}
@@ -737,9 +789,9 @@ export default function WorkStatusForm({
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              className="flex-1" 
+            <Button
+              type="submit"
+              className="flex-1"
               variant="outline"
               disabled={isPending || !!duplicateError}
             >

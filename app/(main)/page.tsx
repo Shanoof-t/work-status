@@ -10,23 +10,34 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, ArrowRight, Plus, ClipboardCopy, Edit, Trash2 } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  ArrowRight,
+  Plus,
+  ClipboardCopy,
+  Edit,
+  Trash2,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { CopyStatusModal } from "./components/copy-status-modal";
 import { useUser } from "../context/UserContext";
-import { getAllWorkStatuses, deleteWorkStatus } from "../../lib/actions/work_status_actions";
+import {
+  getAllWorkStatuses,
+  deleteWorkStatus,
+} from "../../lib/actions/work_status_actions";
 
 const statusColors = {
   "To Do": "bg-gray-100 text-gray-800",
   "In Progress": "bg-blue-100 text-blue-800",
   "Code Review": "bg-purple-100 text-purple-800",
-  "DQA": "bg-orange-100 text-orange-800",
+  DQA: "bg-orange-100 text-orange-800",
   "Ready for QA": "bg-yellow-100 text-yellow-800",
-  "Done": "bg-green-100 text-green-800",
-  "Blocked": "bg-red-100 text-red-800",
+  Done: "bg-green-100 text-green-800",
+  Blocked: "bg-red-100 text-red-800",
 };
 
-interface WorkStatus {
+export interface WorkStatus {
   id: string;
   ticketNumber: string;
   title: string;
@@ -35,7 +46,7 @@ interface WorkStatus {
   totalEffortFormatted: string;
   estimatedEffortFormatted: string;
   date: Date;
-  createdAt: string;
+  createdAt: Date;
 }
 
 interface WorkStatusData {
@@ -54,7 +65,9 @@ function StatusCard({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete ${workStatus.ticketNumber}?`)) {
+    if (
+      confirm(`Are you sure you want to delete ${workStatus.ticketNumber}?`)
+    ) {
       setIsDeleting(true);
       await onDelete(workStatus.id, workStatus.ticketNumber);
       setIsDeleting(false);
@@ -74,7 +87,11 @@ function StatusCard({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge className={statusColors[workStatus.status as keyof typeof statusColors]}>
+            <Badge
+              className={
+                statusColors[workStatus.status as keyof typeof statusColors]
+              }
+            >
               {workStatus.status}
             </Badge>
             <div className="flex gap-1">
@@ -105,21 +122,27 @@ function StatusCard({
             <Clock className="h-4 w-4 text-gray-400" />
             <div>
               <div className="font-medium text-white">Today</div>
-              <div className="text-gray-400">{workStatus.effortTodayFormatted}</div>
+              <div className="text-gray-400">
+                {workStatus.effortTodayFormatted}
+              </div>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <Calendar className="h-4 w-4 text-gray-400" />
             <div>
               <div className="font-medium text-white">Total</div>
-              <div className="text-gray-400">{workStatus.totalEffortFormatted}</div>
+              <div className="text-gray-400">
+                {workStatus.totalEffortFormatted}
+              </div>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <ArrowRight className="h-4 w-4 text-gray-400" />
             <div>
               <div className="font-medium text-white">Estimated</div>
-              <div className="text-gray-400">{workStatus.estimatedEffortFormatted}</div>
+              <div className="text-gray-400">
+                {workStatus.estimatedEffortFormatted}
+              </div>
             </div>
           </div>
         </div>
@@ -145,8 +168,13 @@ interface DaySectionProps {
   onDelete: (id: string, ticketNumber: string) => void;
 }
 
-export function DaySection({ title, workStatuses, count, onEdit, onDelete }: DaySectionProps) {
-  const router = useRouter();
+export function DaySection({
+  title,
+  workStatuses,
+  count,
+  onEdit,
+  onDelete,
+}: DaySectionProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
@@ -173,9 +201,9 @@ export function DaySection({ title, workStatuses, count, onEdit, onDelete }: Day
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {workStatuses.map((status) => (
-          <StatusCard 
-            key={status.id} 
-            workStatus={status} 
+          <StatusCard
+            key={status.id}
+            workStatus={status}
             onEdit={onEdit}
             onDelete={onDelete}
           />
@@ -212,16 +240,51 @@ function formatDateDisplay(date: Date): string {
   }
 }
 
+// Helper function to parse effort string to minutes
+function parseEffortToMinutes(effortString: string): number {
+  if (!effortString || effortString === "0h" || effortString === "-") return 0;
+
+  let totalMinutes = 0;
+
+  try {
+    // Extract numeric values from the formatted string
+    const daysMatch = effortString.match(/(\d+)d/);
+    const hoursMatch = effortString.match(/(\d+)h/);
+    const minutesMatch = effortString.match(/(\d+)m/);
+
+    if (daysMatch) totalMinutes += parseInt(daysMatch[1]) * 8 * 60; // 8 hours per day
+    if (hoursMatch) totalMinutes += parseInt(hoursMatch[1]) * 60;
+    if (minutesMatch) totalMinutes += parseInt(minutesMatch[1]);
+
+    return totalMinutes;
+  } catch (error) {
+    console.error("Error parsing effort string:", effortString, error);
+    return 0;
+  }
+}
+
+// Helper function to format minutes to readable string
+function formatMinutesToReadable(totalMinutes: number): string {
+  if (totalMinutes <= 0) return "0h";
+
+  const days = Math.floor(totalMinutes / (8 * 60));
+  const remainingMinutes = totalMinutes % (8 * 60);
+  const hours = Math.floor(remainingMinutes / 60);
+  const minutes = remainingMinutes % 60;
+
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+
+  return parts.join(" ") || "0h";
+}
+
 export default function Home() {
   const router = useRouter();
   const { user, isLoading: userLoading } = useUser();
   const [workStatusData, setWorkStatusData] = useState<WorkStatusData>({});
   const [isLoading, setIsLoading] = useState(true);
-
-  // Fetch work status data when user is available
-  useEffect(() => {
-    fetchWorkStatusData();
-  }, [user]);
 
   async function fetchWorkStatusData() {
     if (!user) {
@@ -231,10 +294,10 @@ export default function Home() {
 
     try {
       setIsLoading(true);
-      
+
       // Get all work statuses for the user
       const result = await getAllWorkStatuses(user.id);
-      
+
       if (result.success && result.data) {
         // Get dates for the last 7 days
         const today = new Date();
@@ -252,7 +315,7 @@ export default function Home() {
         result.data.forEach((status: WorkStatus) => {
           const statusDate = new Date(status.date);
           const statusDateKey = statusDate.toDateString();
-          
+
           // Only include statuses from the last 7 days
           const sevenDaysAgo = new Date(today);
           sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // -6 to include today (7 days total)
@@ -269,11 +332,67 @@ export default function Home() {
         setWorkStatusData(last7Days);
       }
     } catch (error) {
-      console.error('Error fetching work status data:', error);
+      console.error("Error fetching work status data:", error);
     } finally {
       setIsLoading(false);
     }
   }
+
+  // Fetch work status data when user is available
+  useEffect(() => {
+    async function fetchWorkStatusData() {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+
+        // Get all work statuses for the user
+        const result = await getAllWorkStatuses(user.id);
+
+        if (result.success && result.data) {
+          // Get dates for the last 7 days
+          const today = new Date();
+          const last7Days: { [key: string]: WorkStatus[] } = {};
+
+          // Initialize last 7 days with empty arrays
+          for (let i = 0; i < 7; i++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateKey = date.toDateString();
+            last7Days[dateKey] = [];
+          }
+
+          // Group work statuses by date for the last 7 days
+          result.data.forEach((status: WorkStatus) => {
+            const statusDate = new Date(status.date);
+            const statusDateKey = statusDate.toDateString();
+
+            // Only include statuses from the last 7 days
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // -6 to include today (7 days total)
+            sevenDaysAgo.setHours(0, 0, 0, 0);
+
+            if (statusDate >= sevenDaysAgo) {
+              if (!last7Days[statusDateKey]) {
+                last7Days[statusDateKey] = [];
+              }
+              last7Days[statusDateKey].push(status);
+            }
+          });
+
+          setWorkStatusData(last7Days);
+        }
+      } catch (error) {
+        console.error("Error fetching work status data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchWorkStatusData();
+  }, [user]);
 
   // Handle edit button click
   const handleEdit = (ticketNumber: string) => {
@@ -281,7 +400,7 @@ export default function Home() {
   };
 
   // Handle delete button click
-  const handleDelete = async (id: string, ticketNumber: string) => {
+  const handleDelete = async (id: string) => {
     if (!user) return;
 
     try {
@@ -290,39 +409,29 @@ export default function Home() {
         // Refresh the data
         await fetchWorkStatusData();
       } else {
-        alert(result.error || 'Failed to delete work status');
+        alert(result.error || "Failed to delete work status");
       }
     } catch (error) {
-      console.error('Error deleting work status:', error);
-      alert('Failed to delete work status');
+      console.error("Error deleting work status:", error);
+      alert("Failed to delete work status");
     }
   };
 
-  // Calculate total today's effort from real data
+  // Calculate total today's effort from real data - FIXED VERSION
   const todayKey = new Date().toDateString();
-  const totalTodayEffort = (workStatusData[todayKey] || []).reduce((total, status: any) => {
-    // Only count non-negative values (skip -1 values)
-    const days = status.effortTodayDays >= 0 ? status.effortTodayDays : 0;
-    const hours = status.effortTodayHours >= 0 ? status.effortTodayHours : 0;
-    const minutes = status.effortTodayMinutes >= 0 ? status.effortTodayMinutes : 0;
-    
-    return total + (days * 8 * 60) + (hours * 60) + minutes;
-  }, 0);
+  const totalTodayEffort = (workStatusData[todayKey] || []).reduce(
+    (total, status: WorkStatus) => {
+      return total + parseEffortToMinutes(status.effortTodayFormatted);
+    },
+    0,
+  );
 
-  // Convert minutes back to days/hours/minutes for display
-  const totalDays = Math.floor(totalTodayEffort / (8 * 60));
-  const remainingMinutes = totalTodayEffort % (8 * 60);
-  const totalHours = Math.floor(remainingMinutes / 60);
-  const totalMins = remainingMinutes % 60;
+  // Format the total effort for display
+  const formattedTotalEffort = formatMinutesToReadable(totalTodayEffort);
 
-  const formattedTotalEffort =
-    (totalDays > 0 ? `${totalDays}d ` : "") +
-    (totalHours > 0 ? `${totalHours}h ` : "") +
-    (totalMins > 0 ? `${totalMins}m` : "");
-
-  // Get sorted dates for display (newest first) - FIXED THIS LINE
+  // Get sorted dates for display (newest first)
   const sortedDates = Object.keys(workStatusData).sort((a, b) => {
-    return new Date(b).getTime() - new Date(a).getTime(); // Changed from a-b to b-a
+    return new Date(b).getTime() - new Date(a).getTime();
   });
 
   // Calculate total items across all days
@@ -331,9 +440,20 @@ export default function Home() {
   }, 0);
 
   // Calculate completed items across all days
-  const completedItems = Object.values(workStatusData).reduce((total, statuses) => {
-    return total + statuses.filter((item: any) => item.status === "Done").length;
-  }, 0);
+  const completedItems = Object.values(workStatusData).reduce(
+    (total, statuses) => {
+      return (
+        total +
+        statuses.filter((item: WorkStatus) => item.status === "Done").length
+      );
+    },
+    0,
+  );
+
+  // Calculate in progress items for today
+  const todayInProgressItems = (workStatusData[todayKey] || []).filter(
+    (item: WorkStatus) => item.status === "In Progress",
+  ).length;
 
   if (userLoading || isLoading) {
     return (
@@ -359,7 +479,8 @@ export default function Home() {
               onClick={() => router.push("/create")}
               className="flex items-center space-x-2 bg-white text-black hover:bg-gray-200 border-0"
               variant="outline"
-            >              
+            >
+              <Plus className="h-4 w-4" />
               <span>Create Status</span>
             </Button>
           </div>
@@ -377,21 +498,19 @@ export default function Home() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">
-                {totalItems}
-              </div>
+              <div className="text-2xl font-bold text-white">{totalItems}</div>
               <p className="text-xs text-gray-400">Total work items</p>
             </CardContent>
           </Card>
           <Card className="bg-black border-gray-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-white">
-                Today's Effort
+                Today&lsquo;s Effort
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                {formattedTotalEffort || "0h"}
+                {formattedTotalEffort}
               </div>
               <p className="text-xs text-gray-400">Total time spent today</p>
             </CardContent>
@@ -404,7 +523,7 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                {(workStatusData[todayKey] || []).filter((item: any) => item.status === "In Progress").length}
+                {todayInProgressItems}
               </div>
               <p className="text-xs text-gray-400">Active tasks today</p>
             </CardContent>
@@ -442,9 +561,16 @@ export default function Home() {
         {!isLoading && totalItems === 0 && (
           <div className="text-center py-12">
             <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white">No work status yet</h3>
-            <p className="text-gray-400 mt-1 mb-4">Get started by creating your first work status entry.</p>
-            <Button onClick={() => router.push("/create")} className="bg-white text-black hover:bg-gray-200">
+            <h3 className="text-lg font-medium text-white">
+              No work status yet
+            </h3>
+            <p className="text-gray-400 mt-1 mb-4">
+              Get started by creating your first work status entry.
+            </p>
+            <Button
+              onClick={() => router.push("/create")}
+              className="bg-white text-black hover:bg-gray-200"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Create First Status
             </Button>

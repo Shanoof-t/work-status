@@ -1,58 +1,53 @@
+"use server";
 
-'use server'
-
-import { prisma } from '@/lib/prisma'
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
+import { prisma } from "@/lib/prisma";
 
 // Types
 export type User = {
-    id: string
-    username: string
-    createdAt: Date
-    updatedAt: Date
-}
+  id: string;
+  username: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 // Create User
 export async function createUser(username: string) {
-    try {
-        // Validate username
-        if (!username || username.trim().length < 2) {
-            return { error: 'Username must be at least 2 characters long' }
-        }
-
-        if (username.trim().length > 50) {
-            return { error: 'Username must be less than 50 characters' }
-        }
-
-        const cleanUsername = username.trim()
-
-        let user = await prisma.user.findUnique({
-            where: { username: cleanUsername }
-        })
-
-        if (!user) {
-
-            // Create new user
-            user = await prisma.user.create({
-                data: {
-                    username: cleanUsername
-                },
-                select: {
-                    id: true,
-                    username: true,
-                    createdAt: true,
-                    updatedAt: true
-                }
-            })
-
-        }
-
-        return { success: true, data: user }
-    } catch (error) {
-        console.error('Error creating user:', error)
-        return { error: 'Failed to create user. Please try again.' }
+  try {
+    // Validate username
+    if (!username || username.trim().length < 2) {
+      return { error: "Username must be at least 2 characters long" };
     }
+
+    if (username.trim().length > 50) {
+      return { error: "Username must be less than 50 characters" };
+    }
+
+    const cleanUsername = username.trim();
+
+    let user = await prisma.user.findUnique({
+      where: { username: cleanUsername },
+    });
+
+    if (!user) {
+      // Create new user
+      user = await prisma.user.create({
+        data: {
+          username: cleanUsername,
+        },
+        select: {
+          id: true,
+          username: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    }
+
+    return { success: true, data: user };
+  } catch (error) {
+    console.error("Error creating user:", error);
+    return { error: "Failed to create user. Please try again." };
+  }
 }
 
 // // Get User by ID

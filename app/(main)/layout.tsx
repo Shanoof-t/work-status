@@ -1,18 +1,23 @@
+// app/(main)/layout.tsx
 "use client";
 import { useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 
-export default function layout({ children }: { children: any }) {
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
   const router = useRouter();
 
   useEffect(() => {
-    if (window !== undefined) {
+    if (typeof window !== "undefined") {
       const user = localStorage.getItem("user");
       if (!user) {
-        return router.replace("/sign-up");
+        router.replace("/sign-up");
       }
     }
-  }, []);
+  }, [router]);
 
   return <div>{children}</div>;
 }

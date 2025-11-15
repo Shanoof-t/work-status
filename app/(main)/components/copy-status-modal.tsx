@@ -1,6 +1,6 @@
 // components/copy-status-modal.tsx
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,7 +22,7 @@ interface WorkStatus {
   totalEffortFormatted: string;
   estimatedEffortFormatted: string;
   date: Date;
-  createdAt: string;
+  createdAt: Date;
 }
 
 interface CopyStatusModalProps {
@@ -40,7 +40,6 @@ export function CopyStatusModal({
 }: CopyStatusModalProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedText, setEditedText] = useState("");
 
   // Sort workStatuses by createdAt in ascending order (oldest first)
   const sortedWorkStatuses = [...workStatuses].sort((a, b) => {
@@ -59,7 +58,7 @@ export function CopyStatusModal({
   };
 
   // Generate the status text in the desired format using sorted data
-  const generateStatusText = () => {
+  const generateStatusText = useCallback(() => {
     if (sortedWorkStatuses.length === 0) return "";
 
     const date = sortedWorkStatuses[0].date;
@@ -74,24 +73,23 @@ export function CopyStatusModal({
     });
 
     return text.trim();
-  };
+  }, [sortedWorkStatuses]);
 
   const originalStatusText = generateStatusText();
 
-  // Initialize edited text when modal opens or workStatuses changes
-  // Only update if not currently editing to preserve user changes
-  useEffect(() => {
-    if (isOpen && sortedWorkStatuses.length > 0 && !isEditing) {
-      setEditedText(originalStatusText);
-    }
-  }, [isOpen, sortedWorkStatuses.length]);
+  // Use lazy initializer for editedText
+  const [editedText, setEditedText] = useState(() => originalStatusText);
 
-  // Reset editing state when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      setIsEditing(false);
-    }
-  }, [isOpen]);
+  // Handle modal state changes through event handlers
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setIsEditing(false);
+        onClose();
+      }
+    },
+    [onClose],
+  );
 
   const handleCopy = async () => {
     const textToCopy = isEditing ? editedText : originalStatusText;
@@ -129,7 +127,7 @@ export function CopyStatusModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-3xl text-white">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
@@ -187,7 +185,7 @@ export function CopyStatusModal({
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button

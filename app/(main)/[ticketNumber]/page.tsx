@@ -5,16 +5,36 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import WorkStatusForm from "../components/work-status-form";
 import { useUser } from "@/app/context/UserContext";
-import {
-  getWorkStatusByTicketNumber,
-  updateWorkStatus,
-} from "../../../lib/actions/work_status_actions";
+import { getWorkStatusByTicketNumber } from "../../../lib/actions/work_status_actions";
+
+interface WorkStatusData {
+  id: string;
+  ticketNumber: string;
+  title: string;
+  status: string;
+  effortTodayFormatted: string;
+  totalEffortFormatted: string;
+  estimatedEffortFormatted: string;
+  date: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  effortTodayDays: number;
+  effortTodayHours: number;
+  effortTodayMinutes: number;
+  totalEffortDays: number;
+  totalEffortHours: number;
+  totalEffortMinutes: number;
+  estimatedEffortDays: number;
+  estimatedEffortHours: number;
+  estimatedEffortMinutes: number;
+  userId: string;
+}
 
 export default function EditWorkStatusPage() {
   const params = useParams();
   const router = useRouter();
   const { user, isLoading: userLoading } = useUser();
-  const [workStatus, setWorkStatus] = useState<any>(null);
+  const [workStatus, setWorkStatus] = useState<WorkStatusData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -29,7 +49,7 @@ export default function EditWorkStatusPage() {
         const result = await getWorkStatusByTicketNumber(ticketNumber, user.id);
 
         if (result.success) {
-          setWorkStatus(result.data);
+          setWorkStatus(result.data as WorkStatusData);
         } else {
           setError(result.error || "Work status not found");
         }
@@ -80,7 +100,6 @@ export default function EditWorkStatusPage() {
 
   return (
     <div className="min-h-screen flex justify-center items-center">
-      {" "}
       <WorkStatusForm
         workStatus={workStatus}
         isEdit={true}

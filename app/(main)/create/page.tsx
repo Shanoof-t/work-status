@@ -5,5 +5,5 @@ export default function Home() {
     <div className="min-h-screen flex justify-center items-center">
       <WorkStatusForm />
     </div>
-  )
+  );
 }
