@@ -2,7 +2,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 // Types
@@ -394,13 +394,13 @@ export async function getWorkStatusByTicketNumberAndDate(
   }
 }
 
-export async function checkDuplicateTicketNumber(
+export async function checkDuplicateTicketNumber(  
   userId: string,
-  ticketNumber: string,
+  ticketNumber:string,
   excludeId?: string,
 ) {
   try {
-    const whereClause: { userId: string, ticketNumber: string, id?: { not: string; } } = {
+    const whereClause: Prisma.WorkStatusWhereInput = {      
       userId,
       ticketNumber
     };
@@ -413,7 +413,7 @@ export async function checkDuplicateTicketNumber(
       where: whereClause,
     });
 
-
+    
     return { exists: !!existing, data: existing };
   } catch (error) {
     console.error("Error checking duplicate ticket:", error);
