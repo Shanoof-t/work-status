@@ -26,7 +26,6 @@ export type WorkStatus = {
 };
 
 // Helper function to parse time string (e.g., "1d 2h 30m")
-// Helper function to parse time string (e.g., "1d 2h 30m")
 function parseTimeString(timeString: string) {
   // Default to -1 if empty or invalid (meaning unset)
   let days = -1;
@@ -74,6 +73,17 @@ export async function createWorkStatus(formData: FormData) {
       return { error: "User not authenticated" };
     }
 
+    const duplicateCheck = await checkDuplicateTicketNumber(
+      ticketNumber,
+      userId,
+    );
+
+    if (duplicateCheck.exists) {
+      return {
+        error: "Another work status with this ticket number already exists",
+      };
+    }
+
     const effortTodayParsed = parseTimeString(effortToday);
     const totalEffortParsed = parseTimeString(totalEffort);
     const estimatedEffortParsed = parseTimeString(estimatedEffort);
@@ -115,6 +125,7 @@ export async function createWorkStatus(formData: FormData) {
     return { error: "Failed to create work status" };
   }
 }
+
 // Update Work Status
 export async function updateWorkStatus(
   id: string,
@@ -123,7 +134,7 @@ export async function updateWorkStatus(
 ) {
   try {
     const ticketNumber = formData.get("ticketNumber") as string;
-
+    console.log(" from update id:", id)
     // Check for duplicate ticket number
     const duplicateCheck = await checkDuplicateTicketNumber(
       ticketNumber,
@@ -206,6 +217,49 @@ export async function deleteWorkStatus(id: string, userId: string) {
   } catch (error) {
     console.error("Error deleting work status:", error);
     return { error: "Failed to delete work status" };
+  }
+}
+
+// NEW: Duplicate work status for today
+export async function duplicateWorkStatusForToday(
+  id: string,
+  userId: string,
+) {
+  try {
+    // First verify the work status belongs to the user
+    const existingStatus = await prisma.workStatus.findFirst({
+      where: { id, userId },
+    });
+
+    if (!existingStatus) {
+      return { error: "Work status not found or access denied" };
+    }
+    console.log("existingStatus existing check", existingStatus)
+    // Create a new work status with today's date and same data
+    const newWorkStatus = await prisma.workStatus.create({
+      data: {
+        date: new Date(), // Today's date
+        ticketNumber: existingStatus.ticketNumber,
+        title: existingStatus.title,
+        status: "To Do", // Reset status to "To Do" when moving to today
+        effortTodayDays: -1, // Reset today's effort
+        effortTodayHours: -1,
+        effortTodayMinutes: -1,
+        totalEffortDays: existingStatus.totalEffortDays,
+        totalEffortHours: existingStatus.totalEffortHours,
+        totalEffortMinutes: existingStatus.totalEffortMinutes,
+        estimatedEffortDays: existingStatus.estimatedEffortDays,
+        estimatedEffortHours: existingStatus.estimatedEffortHours,
+        estimatedEffortMinutes: existingStatus.estimatedEffortMinutes,
+        userId: existingStatus.userId,
+      },
+    });
+console.log("newWorkStatus existing check", newWorkStatus)
+    revalidatePath("/");
+    return { success: true, data: newWorkStatus };
+  } catch (error) {
+    console.error("Error duplicating work status for today:", error);
+    return { error: "Failed to duplicate work status" };
   }
 }
 

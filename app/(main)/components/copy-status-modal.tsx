@@ -1,6 +1,5 @@
-// components/copy-status-modal.tsx
 "use client";
-import { useState, useCallback } from "react";
+import { useState,  useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Copy, Check, Edit, RotateCcw } from "lucide-react";
+import { Copy, Check, Edit, RotateCcw, CalendarPlus } from "lucide-react";
 
 interface WorkStatus {
   id: string;
@@ -30,6 +29,7 @@ interface CopyStatusModalProps {
   onClose: () => void;
   workStatuses: WorkStatus[];
   title: string;
+  onBulkMoveToToday?: (workStatuses: WorkStatus[]) => void;
 }
 
 export function CopyStatusModal({
@@ -37,14 +37,23 @@ export function CopyStatusModal({
   onClose,
   workStatuses,
   title,
+  onBulkMoveToToday,
 }: CopyStatusModalProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [editedText, setEditedText] = useState("");
 
   // Sort workStatuses by createdAt in ascending order (oldest first)
-  const sortedWorkStatuses = [...workStatuses].sort((a, b) => {
-    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-  });
+  const sortedWorkStatuses = useMemo(() => 
+    [...workStatuses].sort((a, b) => {
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    }), [workStatuses]
+  );
+
+  // Check if any of the work statuses are not from today
+  const hasNonTodayItems = workStatuses.some(
+    (status) => new Date(status.date).toDateString() !== new Date().toDateString()
+  );
 
   // Format date for the header (e.g., "07/11/25")
   const formatDate = (date: Date) => {
@@ -75,24 +84,20 @@ export function CopyStatusModal({
     return text.trim();
   }, [sortedWorkStatuses]);
 
-  const originalStatusText = generateStatusText();
+  const originalStatusText = useMemo(() => generateStatusText(), [generateStatusText]);
 
-  // Use lazy initializer for editedText
-  const [editedText, setEditedText] = useState(() => originalStatusText);
+  const handleClose = () => {
+    // Reset state when modal closes
+    setIsEditing(false);
+    setEditedText("");
+    onClose();
+  };
 
-  // Handle modal state changes through event handlers
-  const handleOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        setIsEditing(false);
-        onClose();
-      }
-    },
-    [onClose],
-  );
+  // Compute the display text based on editing state
+  const displayText = isEditing ? editedText : originalStatusText;
 
   const handleCopy = async () => {
-    const textToCopy = isEditing ? editedText : originalStatusText;
+    const textToCopy = displayText;
     try {
       await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
@@ -116,7 +121,7 @@ export function CopyStatusModal({
       // Save changes (just toggle off editing mode)
       setIsEditing(false);
     } else {
-      // Start editing - sync with current original text
+      // Start editing - initialize with current original text
       setEditedText(originalStatusText);
       setIsEditing(true);
     }
@@ -126,8 +131,15 @@ export function CopyStatusModal({
     setEditedText(originalStatusText);
   };
 
+  const handleBulkMoveToToday = () => {
+    if (onBulkMoveToToday && confirm(`Move all ${workStatuses.length} items to today?`)) {
+      onBulkMoveToToday(workStatuses);
+      handleClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl text-white">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
@@ -143,7 +155,7 @@ export function CopyStatusModal({
         <div className="space-y-4">
           <div className="rounded-lg border relative">
             <Textarea
-              value={isEditing ? editedText : originalStatusText}
+              value={displayText}
               readOnly={!isEditing}
               onChange={(e) => setEditedText(e.target.value)}
               className={`min-h-[300px] font-mono text-sm resize-none ${
@@ -185,9 +197,22 @@ export function CopyStatusModal({
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Cancel
-          </Button>
+          <div className="flex gap-2">
+            {/* Bulk move to today button */}
+            {onBulkMoveToToday && hasNonTodayItems && (
+              <Button
+                variant="outline"
+                onClick={handleBulkMoveToToday}
+                className="flex items-center gap-2 text-green-500 border-green-500 hover:bg-green-500 hover:text-white"
+              >
+                <CalendarPlus className="w-4 h-4" />
+                Move All to Today
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
+          </div>
           <Button
             variant="outline"
             onClick={handleCopy}
